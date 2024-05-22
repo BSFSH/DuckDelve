@@ -1,28 +1,82 @@
 body {
     font-family: Arial, sans-serif;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh;
     background-color: #f4f4f4;
+    margin: 0;
 }
 
 .container {
     text-align: center;
+    width: 90%;
+    max-width: 800px;
+    margin: auto;
 }
 
 textarea {
-    width: 80%;
+    width: 100%;
     height: 200px;
     margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
 }
 
 button {
     padding: 10px 20px;
     font-size: 16px;
     cursor: pointer;
+    border: none;
+    background-color: #28a745;
+    color: white;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+button:hover {
+    background-color: #218838;
 }
 
 #result {
-    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+table {
+    border-collapse: collapse;
+    margin: 20px auto; /* Center-align the table */
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+th {
+    background-color: #f2f2f2;
+}
+
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+tr:hover {
+    background-color: #ddd;
+}
+
+ul {
+    list-style-position: inside; /* Ensure bullets are inside the list item */
+    padding: 0; /* Remove default padding */
+    margin: 0; /* Remove default margin */
+}
+
+ul li {
+    margin-left: 20px; /* Adjust as needed to align bullet points */
+    padding-left: 5px; /* Adjust padding between bullet and text */
 }

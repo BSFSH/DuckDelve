@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Olmran Item Lookup</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <title>Duck Delve</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
     <div class="container">
-        <h1>Olmran Item Lookup</h1>
+        <h1>Duck Delve - Olmran Item Lookup</h1>
         <textarea id="item-list" placeholder="Paste your items here..."></textarea>
-        <button onclick="submitItems()">Submit</button>
+        <button onclick="submitItems()">Delve!</button>
         <div id="result"></div>
+        <div id="not-found" style="margin-top: 20px;"></div>
     </div>
-    <script src="/static/script.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
