@@ -25,8 +25,15 @@ def get_items_from_sheet():
 
 def sanitize_input(input_text):
     articles = {"a ", "an ", "the "}
-    enchant_prefixes = {"shining ", "bright ", "glowing ", "lustrous ", "silvered ", }
-    material_prefixes = {"mithril ", "alloy ", "steel ", "embossed ", "silk ", "yew ", "rosewood ", "gossamer ", "ebonweave ", "wispweave ","ironwood ", "laen ", "suede ", "wyvern scale ", "enchanted "}
+    enchant_prefixes = {
+        "brilliant ", "lustrous ", "glowing ", "shining ", "bright ", "silvered "
+    }
+    material_prefixes = {
+        "bronze ", "iron ", "steel ", "alloy ", "mithril ", "laen ",
+        "wool ", "cotton ", "silk ", "gossamer ", "wispweave ", "ebonweave ",
+        "leather ", "rough ", "embossed ", "suede ", "wyvern scale ", "enchanted ",
+        "maple ", "oak ", "yew ", "rosewood ", "ironwood ", "ebony "
+    }
     unwanted_prefixes = {"(w) ", "(h) "}
     
     # Remove the header and any leading/trailing whitespace
