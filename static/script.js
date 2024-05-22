@@ -18,11 +18,12 @@ function displayResult(data) {
     resultDiv.innerHTML = '';
     notFoundDiv.innerHTML = '';
 
-    console.log('Data received:', data); // Debugging statement
-
     if (data.items && data.items.length > 0) {
         const table = document.createElement('table');
-        const header = table.insertRow();
+        table.id = 'items-table';
+        table.className = 'display';
+        const thead = table.createTHead();
+        const header = thead.insertRow();
 
         // Use the headers provided by the backend to preserve order
         const headers = data.headers;
@@ -32,9 +33,11 @@ function displayResult(data) {
             header.appendChild(th);
         });
 
+        const tbody = table.createTBody();
+
         // Create table rows for each item
         data.items.forEach(item => {
-            const row = table.insertRow();
+            const row = tbody.insertRow();
             headers.forEach(headerText => {
                 const cell = row.insertCell();
                 cell.textContent = item[headerText];
@@ -42,12 +45,19 @@ function displayResult(data) {
         });
 
         resultDiv.appendChild(table);
+
+        // Initialize DataTable with search and custom lengthMenu options
+        $(document).ready(function() {
+            $('#items-table').DataTable({
+                pageLength: 100, // Set default number of entries to show
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]] // Define length menu options
+            });
+        });
     } else {
         resultDiv.textContent = 'No items found.';
     }
 
     if (data.not_found && data.not_found.length > 0) {
-        console.log('Not found items:', data.not_found); // Debugging statement
         const notFoundList = document.createElement('ul');
         const notFoundHeader = document.createElement('p');
         notFoundHeader.textContent = 'Item(s) not found:';
@@ -60,4 +70,3 @@ function displayResult(data) {
         notFoundDiv.appendChild(notFoundList);
     }
 }
-

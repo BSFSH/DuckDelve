@@ -25,9 +25,10 @@ def get_items_from_sheet():
 
 def sanitize_input(input_text):
     articles = {"a ", "an ", "the "}
-    enchant_prefixes = {"shining ", "bright ", "glowing ", "lustrous ", "silvered "}
-    material_prefixes = {"mithril ", "alloy ", "steel ", "silk "}
-
+    enchant_prefixes = {"shining ", "bright ", "glowing ", "lustrous ", "silvered ", }
+    material_prefixes = {"mithril ", "alloy ", "steel ", "embossed ", "silk ", "yew ", "rosewood ", "gossamer ", "ebonweave ", "wispweave ","ironwood ", "laen ", "suede ", "wyvern scale ", "enchanted "}
+    unwanted_prefixes = {"(w) ", "(h) "}
+    
     # Remove the header and any leading/trailing whitespace
     lines = input_text.strip().split('\n')
     sanitized_lines = []
@@ -41,11 +42,23 @@ def sanitize_input(input_text):
         # Skip the "Items in Strongbox" and "Strongbox capacity" headers
         if line.lower().startswith("items in strongbox") or line.lower().startswith("strongbox capacity"):
             continue
-        
-        # Remove numbering and extract the item name
-        if line[0].isdigit() and '.) ' in line:
-            line = line.split('.) ', 1)[1].strip()
-        
+
+        # Skip lines that start with "Inventory" or "Encumbrance"
+        if line.lower().startswith("inventory") or line.lower().startswith("encumbrance"):
+            continue
+
+        # Remove prefixes like "(w)", "(h)", and "( 9)"
+        if line.startswith('(') and ')' in line:
+            line = line.split(')', 1)[1].strip()
+
+        # Remove quantities like "4#"
+        if ' ' in line and line.split(' ', 1)[0].isdigit():
+            line = line.split(' ', 1)[1].strip()
+
+        # Remove numbering like "1.) "
+        if '.' in line and line.split('.')[0].strip().isdigit():
+            line = line.split(')', 1)[1].strip()
+
         # Remove leading articles
         line_lower = line.lower()
         for article in articles:
@@ -68,8 +81,15 @@ def sanitize_input(input_text):
                 line_lower = line.lower()
                 break
         
+        # Remove unwanted prefixes like "(w)" and "(h)"
+        for prefix in unwanted_prefixes:
+            if line_lower.startswith(prefix):
+                line = line[len(prefix):].strip()
+                line_lower = line.lower()
+                break
+
         if line:  # Ensure the line is not empty
-            sanitized_lines.append(line)
+            sanitized_lines.append(line.lower())
     
     return '\n'.join(sanitized_lines)
 
@@ -78,23 +98,26 @@ def query_items(item_list):
     item_list = sanitize_input(item_list)
     items = get_items_from_sheet()
     headers = items[0]  # Get headers from the first row
-    item_dict = {item[3]: item for item in items[1:]}  # Create a dictionary with the 4th column (Item) as keys
+    item_dict = {item[3].strip().lower(): item for item in items[1:]}  # Create a dictionary with the 4th column (Item) as keys, in lowercase and stripped of whitespace
+
+    print("Item dictionary keys:", list(item_dict.keys()))  # Debug: print item dictionary keys
 
     requested_items = item_list.split('\n')
     found_items = []
     not_found_items = []
     for item in requested_items:
-        item = item.strip()
-        print(f"Looking for item: {item}")
+        item = item.strip().lower()
+        print(f"Looking for item: {item}")  # Debug: print item being looked for
         if item:
             row = item_dict.get(item, None)
             if row:
-                print(f"Item found: {row}")
+                print(f"Item found: {row}")  # Debug: print item found
                 found_items.append(dict(zip(headers, row)))
             else:
-                print(f"Item not found: {item}")
+                print(f"Item not found: {item}")  # Debug: print item not found
                 not_found_items.append(item)
     return found_items, not_found_items, headers
+
 
 @app.route('/')
 def index():
@@ -109,4 +132,3 @@ def submit():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
