@@ -107,8 +107,6 @@ def query_items(item_list):
     headers = items[0]  # Get headers from the first row
     item_dict = {item[3].strip().lower(): item for item in items[1:]}  # Create a dictionary with the 4th column (Item) as keys, in lowercase and stripped of whitespace
 
-    print("Item dictionary keys:", list(item_dict.keys()))  # Debug: print item dictionary keys
-
     requested_items = item_list.split('\n')
     found_items = []
     not_found_items = []
