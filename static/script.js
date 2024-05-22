@@ -60,3 +60,4 @@ function displayResult(data) {
         notFoundDiv.appendChild(notFoundList);
     }
 }
+
