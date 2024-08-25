@@ -14,7 +14,7 @@ def get_items_from_sheet():
     csv_data = response.text
     reader = csv.reader(StringIO(csv_data))
     items = list(reader)
-    
+
     # Save parsed data to a CSV file
     with open('parsed_google_sheet.csv', 'w', newline='', encoding='utf-8') as csvfile:
         csv_writer = csv.writer(csvfile)
@@ -35,12 +35,27 @@ def sanitize_input(input_text):
         "maple ", "oak ", "yew ", "rosewood ", "ironwood ", "ebony "
     }
     unwanted_prefixes = {"(w) ", "(h) "}
-    
-    # Remove the header and any leading/trailing whitespace
-    lines = input_text.strip().split('\n')
+    suffix_to_remove = " is here."
+    phrases_to_remove = ["you also see", "and a"]
+
+    # Check if commas are present in the input
+    if ',' in input_text:
+        # Replace line breaks within the text with spaces
+        input_text = input_text.replace('\n', ' ')
+        # Split the input based on commas
+        lines = [item.strip() for item in input_text.split(',')]
+    else:
+        # If no commas, split by line breaks
+        lines = input_text.strip().split('\n')
+
     sanitized_lines = []
     for line in lines:
         line = line.strip()
+
+        # Remove specific phrases
+        for phrase in phrases_to_remove:
+            if phrase in line.lower():
+                line = line.lower().replace(phrase, '').strip()
 
         # Skip empty lines
         if not line:
@@ -73,21 +88,21 @@ def sanitize_input(input_text):
                 line = line[len(article):].strip()
                 line_lower = line.lower()
                 break
-        
+
         # Remove enchantment prefixes
         for prefix in enchant_prefixes:
             if line_lower.startswith(prefix):
                 line = line[len(prefix):].strip()
                 line_lower = line.lower()
                 break
-        
+
         # Remove material prefixes
         for prefix in material_prefixes:
             if line_lower.startswith(prefix):
                 line = line[len(prefix):].strip()
                 line_lower = line.lower()
                 break
-        
+
         # Remove unwanted prefixes like "(w)" and "(h)"
         for prefix in unwanted_prefixes:
             if line_lower.startswith(prefix):
@@ -95,9 +110,17 @@ def sanitize_input(input_text):
                 line_lower = line.lower()
                 break
 
+        # Remove the suffix "is here."
+        if line_lower.endswith(suffix_to_remove):
+            line = line[:-len(suffix_to_remove)].strip()
+            line_lower = line.lower()
+
+        # Remove periods
+        line = line.replace('.', '')
+
         if line:  # Ensure the line is not empty
             sanitized_lines.append(line.lower())
-    
+
     return '\n'.join(sanitized_lines)
 
 
