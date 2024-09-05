@@ -36,17 +36,13 @@ def sanitize_input(input_text):
     }
     unwanted_prefixes = {"(w) ", "(h) "}
     suffix_to_remove = " is here."
-    phrases_to_remove = ["you also see", "and a"]
+    phrases_to_remove = ["you also see", " and "]
 
-    # Check if commas are present in the input
-    if ',' in input_text:
-        # Replace line breaks within the text with spaces
-        input_text = input_text.replace('\n', ' ')
-        # Split the input based on commas
-        lines = [item.strip() for item in input_text.split(',')]
-    else:
-        # If no commas, split by line breaks
-        lines = input_text.strip().split('\n')
+    # Replace line breaks within the text with commas
+    input_text = input_text.replace('\n', ', ')
+
+    # Split the input based on commas
+    lines = [item.strip() for item in input_text.split(',')]
 
     sanitized_lines = []
     for line in lines:
