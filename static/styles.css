@@ -1,3 +1,4 @@
+/* Full-Time Dark Mode Styles */
 body {
     font-family: Arial, sans-serif;
     display: flex;
@@ -5,7 +6,8 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background-color: #f4f4f4;
+    background-color: #1c1c1c; /* Dark background */
+    color: #f1f1f1; /* Light text */
     margin: 0;
 }
 
@@ -21,7 +23,9 @@ textarea {
     height: 200px;
     margin-bottom: 10px;
     padding: 10px;
-    border: 1px solid #ccc;
+    background-color: #333; /* Dark background for textarea */
+    color: #fff; /* Light text for textarea */
+    border: 1px solid #777; /* Darker border */
     border-radius: 4px;
     box-sizing: border-box;
 }
@@ -31,14 +35,14 @@ button {
     font-size: 16px;
     cursor: pointer;
     border: none;
-    background-color: #28a745;
-    color: white;
+    background-color: #555; /* Darker button */
+    color: white; /* Light button text */
     border-radius: 4px;
     margin-bottom: 20px;
 }
 
 button:hover {
-    background-color: #218838;
+    background-color: #444; /* Darker hover effect */
 }
 
 #result {
@@ -50,25 +54,46 @@ button:hover {
 table {
     border-collapse: collapse;
     margin: 20px auto; /* Center-align the table */
+    color: #fff; /* Light text for table */
+    background-color: #333; /* Dark background for table */
 }
 
 th, td {
-    border: 1px solid #ddd;
+    border: 1px solid #555; /* Darker border */
     padding: 8px;
     text-align: left;
+    background-color: #2a2a2a; /* Darker background for table cells */
 }
 
+/* Override DataTables sorted column class */
+table .sorting_1 {
+    background-color: #3a3a3a !important; /* Slightly lighter gray for the sorted column */
+    color: #fff !important; /* Force text to stay white */
+}
+
+/* General table header styles */
 th {
-    background-color: #f2f2f2;
+    background-color: #444 !important; /* Darker background for table headers */
+    color: #fff; /* Light text for headers */
 }
 
 tr:nth-child(even) {
-    background-color: #f9f9f9;
+    background-color: #2a2a2a; /* Darker background for even rows */
 }
 
 tr:hover {
-    background-color: #ddd;
+    background-color: #444; /* Hover effect for table rows */
 }
+
+/* Lighten text for all elements outside the table */
+.dataTables_length label,
+.dataTables_info,
+.dataTables_filter label,
+.dataTables_paginate,
+body *:not(table) {
+    color: #ccc; /* Apply the same lighter gray color */
+}
+
 
 ul {
     list-style-position: inside; /* Ensure bullets are inside the list item */
@@ -80,4 +105,3 @@ ul li {
     margin-left: 20px; /* Adjust as needed to align bullet points */
     padding-left: 5px; /* Adjust padding between bullet and text */
 }
-
