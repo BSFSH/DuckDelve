@@ -1,0 +1,10 @@
+1.01 - 8/25/2025
+- Added changelog (lol)
+- Redirected data source from Algon's sheet to Rampage's sheet
+- Removed removal of commas
+    - This will allow items with commas in the name to be found by DuckDelve
+    - This will require you to use the "LL" command when attempting to delve a list of items on the ground
+- Removed removal of "and"
+
+1.02 - 8/25/2025
+-Reworked app.py to save generated item data in a flask session, to later be used by DuckSets
