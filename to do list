@@ -2,6 +2,7 @@
 ## Also, give it a button so I can update it at will.
 
 ### Current steps:
-Update the index.html to look like the mock up
-    -add toggle buttons
-    - build Sets area
+display any "locked in" items underneath Current # of Sets
+improve the filtering and displaying of data under 'available spells' to eventually
+Optimize the process to reduce calculation or "waiting" time
+Display a "thinking" whirlygig somewhere?

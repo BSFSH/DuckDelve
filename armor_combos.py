@@ -7,16 +7,61 @@ from typing import Dict, Iterable, Iterator, List, Tuple, Any, Set
 REQUIRED_SLOTS: Tuple[str, ...] = ("Body", "Cloak", "Feet", "Hands", "Head", "Legs")
 JEWEL_SLOTS = {"jewel", "jewels"}  # case-insensitive check against Slot column
 
+# -------------------------- small utils --------------------------------------
+
 def _norm(s: Any) -> str:
     return str(s or "").strip()
 
 def _slot(s: Any) -> str:
+    """Title-case slot name (e.g., 'head' -> 'Head')."""
     return _norm(s).title()
+
+def _canonical_slot(s: Any) -> str:
+    """
+    Canonicalize slot for internal comparisons/deduping.
+    'jewel' / 'jewels' => 'Jewel', otherwise TitleCase (Body, Cloak, ...).
+    """
+    raw = _norm(s)
+    if raw.lower() in JEWEL_SLOTS:
+        return "Jewel"
+    return _slot(raw)
 
 def _is_weapon_or_shield(item: Dict[str, Any]) -> bool:
     t = _norm(item.get("Type")).lower()
     sl = _norm(item.get("Slot")).lower()
     return t in {"weapon", "weapons", "shield", "shields"} or sl in {"weapon", "weapons", "shield", "shields"}
+
+# -------------------------- deduplication ------------------------------------
+
+def dedupe_items(
+    items: List[Dict[str, Any]],
+    key_fields: Tuple[str, ...] = ("Slot", "Item", "Spell"),
+) -> List[Dict[str, Any]]:
+    """
+    Remove duplicate item rows by a content key (default: Slot, Item, Spell).
+    Normalizes:
+      - Slot via _canonical_slot (handles 'jewel' vs 'jewels', title-casing)
+      - All fields: trimmed, lower-cased strings
+    """
+    seen: Set[Tuple[str, ...]] = set()
+    out: List[Dict[str, Any]] = []
+
+    for it in items:
+        k: List[str] = []
+        for f in key_fields:
+            v = it.get(f)
+            if f.lower() == "slot":
+                k.append(_canonical_slot(v).lower())
+            else:
+                k.append(_norm(v).lower())
+        tup = tuple(k)
+        if tup in seen:
+            continue
+        seen.add(tup)
+        out.append(it)
+    return out
+
+# ------------------------- partitioning --------------------------------------
 
 def partition_session_items(items: List[Dict[str, Any]]) -> Tuple[Dict[str, List[Dict[str, Any]]], List[Dict[str, Any]]]:
     """
@@ -24,20 +69,26 @@ def partition_session_items(items: List[Dict[str, Any]]) -> Tuple[Dict[str, List
       - slot_pools: dict of required slot -> list of candidate items
       - jewels: list of jewel items
     Weapons/shields are excluded.
+    **Now dedupes globally before partitioning** so identical rows don't inflate combos.
     """
+    # Global dedupe first
+    items = dedupe_items(items)
+
     slot_pools: Dict[str, List[Dict[str, Any]]] = {s: [] for s in REQUIRED_SLOTS}
     jewels: List[Dict[str, Any]] = []
 
     for it in items:
         if _is_weapon_or_shield(it):
             continue
-        slot_val = _slot(it.get("Slot"))
-        if slot_val.lower() in JEWEL_SLOTS:
+        slot_val = _canonical_slot(it.get("Slot"))
+        if slot_val == "Jewel":
             jewels.append(it)
         elif slot_val in slot_pools:
             slot_pools[slot_val].append(it)
 
     return slot_pools, jewels
+
+# ------------------------ jewel picking --------------------------------------
 
 def _jewel_picker(
     jewels: List[Dict[str, Any]],
@@ -52,6 +103,8 @@ def _jewel_picker(
     else:
         yield from combinations(jewels, need)
 
+# --------------------- combination generation --------------------------------
+
 def generate_armor_combinations(
     items: List[Dict[str, Any]],
     jewels_needed: int = 2,
@@ -64,6 +117,8 @@ def generate_armor_combinations(
 
     Each yielded record:
       { "slots": { "Body": {...}, "Cloak": {...}, ..., "Jewel1": {...}, "Jewel2": {...} } }
+
+    NOTE: duplicates in the input (by Slot+Item+Spell) are deduplicated up-front.
     """
     slot_pools, jewel_pool = partition_session_items(items)
 
@@ -105,13 +160,14 @@ def generate_armor_combinations(
 
             yield {"slots": slot_map}
 
+# -------------------------- convenience --------------------------------------
+
 def take(n: int, it: Iterable[Any]) -> List[Any]:
     """Return the first n items from an iterator/generator."""
     return list(islice(it, n))
 
-# ---------------------------------------------------------------------------
-# Unique spells helper
-# ---------------------------------------------------------------------------
+# ------------------------ unique spells helper --------------------------------
+
 def get_unique_spells(
     items: List[Dict[str, Any]],
     *,
@@ -146,9 +202,8 @@ def get_unique_spells(
     result.sort(key=lambda s: s.lower())
     return result
 
-# ---------------------------------------------------------------------------
-# Filtering combos by required spells
-# ---------------------------------------------------------------------------
+# ----------------------- filtering by spells ----------------------------------
+
 def _combo_spells(
     combo: Dict[str, Any],
     *,

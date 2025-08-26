@@ -111,17 +111,72 @@ ul li {
   visibility: hidden;
 }
 
+/* ---------------- Sets panel (3 columns: Totals | Spells | Current #) ---------------- */
+
 #sets-panel-holder {
   width: min(1200px, 96vw);
   margin: 18px auto 8px;
 }
-.sets-panel { padding: 8px 12px; }
-.sets-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-.sets-col h3 { margin: 0 0 8px; font-weight: 700; }
-.sets-list { list-style: none; margin: 0; padding: 0; }
-.sets-list li { margin: 2px 0; }
-.slot-name { display: inline-block; min-width: 64px; color: #ddd; font-weight: 600; }
-.slot-count { color: #fff; }
+
+.sets-panel {
+  padding: 8px 12px;
+}
+
+.sets-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr; /* three columns */
+  gap: 24px;
+  align-items: start;
+}
+
+.sets-col h3 {
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+
+.sets-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sets-list li {
+  margin: 2px 0;
+}
+
+.slot-name {
+  display: inline-block;
+  min-width: 64px;
+  font-weight: 600;
+  color: #ddd;
+}
+
+.slot-count {
+  color: #fff;
+}
+
+.sets-col-total {
+  text-align: center;
+}
+
+.sets-col-total .sets-total {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  margin-top: 6px;
+}
+
+/* Optional: stack all three columns vertically on narrow screens */
+@media (max-width: 1100px) {
+  .sets-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Clickable spells in the Sets panel */
+.sets-list .spell-item { cursor: pointer; }
+.sets-list .spell-item:hover { text-decoration: underline; }
+.sets-list .spell-selected { color: #7cc7ff; } /* light blue */
 
 
 

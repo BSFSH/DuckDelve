@@ -1,4 +1,4 @@
-1.01 - 8/25/2025
+1.01
 - Added changelog (lol)
 - Redirected data source from Algon's sheet to Rampage's sheet
 - Removed removal of commas
@@ -6,5 +6,13 @@
     - This will require you to use the "LL" command when attempting to delve a list of items on the ground
 - Removed removal of "and"
 
-1.02 - 8/25/2025
+1.02
 -Reworked app.py to save generated item data in a flask session, to later be used by DuckSets
+
+1.03
+Back End
+-Fleshed out armor_combos to generated filtered lists of combos
+
+Front End
+-Started working on the Sets display
+-Started working on the filtering UI

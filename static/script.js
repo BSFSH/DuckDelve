@@ -1,6 +1,15 @@
-// script.js — adds "Show/Hide Sets" (left of Delve) and "Show/Hide Table" (right of Delve)
-// The Sets panel appears only after the first successful delve and shows slot counts + unique spells.
-// Sets panel is inserted BETWEEN the textarea/buttons and the table.
+// script.js — Sets panel (Totals | Spells | Current # of Sets) and Table toggle
+// Now supports clicking "Available spells" to filter combos (AND logic).
+// Selected spells turn light blue and the "Current # of Sets" recomputes via backend.
+//
+// Endpoints used:
+//   POST /submit                 -> returns items table (unchanged)
+//   GET  /sets/current           -> count with NO filters
+//   POST /sets/filter {spells}   -> count with filters (all must be present)
+
+let lastItems = null;          // most-recent items returned by /submit
+let lastSetsCount = null;      // cache of backend-computed sets count (for current selection)
+let selectedSpells = new Set(); // current UI filter (lowercased)
 
 function submitItems() {
     const itemList = document.getElementById('item-list').value;
@@ -14,7 +23,7 @@ function submitItems() {
     .catch(err => console.error('Error:', err));
 }
 
-// ---------- helpers: buttons -------------------------------------------------
+/* ------------------------------- Buttons --------------------------------- */
 
 function getDelveButton() {
     return (
@@ -46,7 +55,6 @@ function ensureTableToggleButton() {
             if (hidden) {
                 resultDiv.style.display = '';
                 toggleBtn.textContent = 'Hide Table';
-                // Adjust DataTables after re-show
                 if (window.jQuery && jQuery.fn && jQuery.fn.DataTable) {
                     const tbl = document.getElementById('items-table');
                     if (tbl && jQuery.fn.dataTable.isDataTable(tbl)) {
@@ -78,13 +86,20 @@ function ensureSetsToggleButton() {
         // insert to the LEFT of Delve
         delveBtn.parentNode.insertBefore(setsBtn, delveBtn);
 
-        setsBtn.addEventListener('click', function () {
+        setsBtn.addEventListener('click', async function () {
             const panel = document.getElementById('sets-panel');
             if (!panel) return;
+
             const isHidden = panel.style.display === 'none' || panel.style.display === '';
             if (isHidden) {
                 panel.style.display = 'block';
                 setsBtn.textContent = 'Hide Sets';
+
+                // (Re)render to ensure spell list reflects current selection
+                renderSetsPanel(lastItems || [], lastSetsCount ?? 0);
+
+                // Recompute count for current selection
+                await updateSetsCount();
             } else {
                 panel.style.display = 'none';
                 setsBtn.textContent = 'Show Sets';
@@ -95,10 +110,64 @@ function ensureSetsToggleButton() {
     }
 }
 
-// ---------- helpers: compute data for Sets panel -----------------------------
+/* ---------------------------- Backend calls ------------------------------- */
+
+async function fetchCurrentSetsCount() {
+    // No filters: GET /sets/current
+    try {
+        const r = await fetch('/sets/current', { method: 'GET' });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        return typeof data.sets_count === 'number' ? data.sets_count : 0;
+    } catch (e) {
+        console.error('Failed to fetch current sets count:', e);
+        return 0;
+    }
+}
+
+async function fetchFilteredSetsCount(spells) {
+    // With filters: POST /sets/filter
+    try {
+        const r = await fetch('/sets/filter', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ spells })
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        return typeof data.sets_count === 'number' ? data.sets_count : 0;
+    } catch (e) {
+        console.error('Failed to fetch filtered sets count:', e);
+        return 0;
+    }
+}
+
+async function updateSetsCount() {
+    const panel = document.getElementById('sets-panel');
+    if (!panel) return;
+
+    const totalEl = panel.querySelector('.sets-col-total .sets-total');
+    if (!totalEl) return;
+
+    // Show a lightweight "loading" hint
+    totalEl.textContent = '…';
+
+    const spells = Array.from(selectedSpells);
+    let count = 0;
+    if (spells.length === 0) {
+        count = await fetchCurrentSetsCount();
+    } else {
+        count = await fetchFilteredSetsCount(spells);
+    }
+
+    lastSetsCount = count;
+    totalEl.textContent = Number(count).toLocaleString();
+}
+
+/* ---------------------------- Data helpers ------------------------------- */
 
 const SLOT_ORDER = ['Head', 'Jewel', 'Body', 'Cloak', 'Hands', 'Legs', 'Feet'];
-const SLOT_EXCLUDE = new Set(['weapon', 'shield']); // exclude these from counts
+const SLOT_EXCLUDE = new Set(['weapon', 'shield']);
 
 function titleCaseSlot(v) {
     if (!v) return '';
@@ -130,22 +199,42 @@ function computeUniqueSpells(items) {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
 }
 
-// ---------- render Sets panel ------------------------------------------------
+/* ---------------------------- Sets panel UI ------------------------------ */
 
-function renderSetsPanel(items) {
-    // ENSURE HOLDER SITS **BEFORE** THE TABLE CONTAINER (#result)
+function attachSpellClickHandler(panel) {
+    // Event delegation: click on any <li class="spell-item" data-spell="...">
+    panel.addEventListener('click', async function (e) {
+        const li = e.target.closest('.spell-item');
+        if (!li || !panel.contains(li)) return;
+
+        const spell = (li.dataset.spell || li.textContent || '').trim().toLowerCase();
+        if (!spell) return;
+
+        if (selectedSpells.has(spell)) {
+            selectedSpells.delete(spell);
+            li.classList.remove('spell-selected');
+        } else {
+            selectedSpells.add(spell);
+            li.classList.add('spell-selected');
+        }
+
+        // Recompute and update count
+        await updateSetsCount();
+    });
+}
+
+function renderSetsPanel(items, currentSetsCount) {
     const resultDiv = document.getElementById('result');
     const rootParent = resultDiv ? resultDiv.parentNode : document.body;
 
+    // Holder sits BEFORE the table so the panel is between textarea/buttons and table
     let holder = document.getElementById('sets-panel-holder');
     if (!holder) {
         holder = document.createElement('div');
         holder.id = 'sets-panel-holder';
-        // Insert holder right BEFORE the table container -> between textarea/buttons and table
         if (resultDiv) {
             rootParent.insertBefore(holder, resultDiv);
         } else {
-            // Fallback: append to body if #result is missing (shouldn't happen in normal flow)
             rootParent.appendChild(holder);
         }
     }
@@ -157,17 +246,18 @@ function renderSetsPanel(items) {
         panel = document.createElement('div');
         panel.id = 'sets-panel';
         panel.className = 'sets-panel';
-        panel.style.display = 'none'; // initial state hidden
+        panel.style.display = 'none'; // remains hidden until user clicks Show Sets
         holder.appendChild(panel);
+        attachSpellClickHandler(panel); // attach once
     } else if (panel.parentNode !== holder) {
-        // If panel existed elsewhere, move it under the holder
         holder.appendChild(panel);
     }
 
-    // Build content (two columns: Slot counts, Available spells)
-    const counts = computeSlotCounts(items);
-    const spells = computeUniqueSpells(items);
+    // Data for three columns
+    const counts = computeSlotCounts(items || []);
+    const spells = computeUniqueSpells(items || []);
 
+    // Column 1: totals by slot
     const slotsHTML = `
       <h3>Totals by Slot</h3>
       <ul class="sets-list">
@@ -175,29 +265,44 @@ function renderSetsPanel(items) {
       </ul>
     `;
 
+    // Column 2: available spells (clickable)
     const spellsHTML = `
       <h3>Available spells</h3>
       <ul class="sets-list">
-        ${spells.map(sp => `<li>${sp}</li>`).join('')}
+        ${spells.map(sp => {
+            const isSelected = selectedSpells.has(sp);
+            return `<li class="spell-item${isSelected ? ' spell-selected' : ''}" data-spell="${sp}">${sp}</li>`;
+        }).join('')}
       </ul>
+    `;
+
+    // Column 3: current # of sets (backend-provided count for current selection)
+    const safeCount = Number(
+        (typeof currentSetsCount === 'number')
+            ? currentSetsCount
+            : (Array.isArray(currentSetsCount) ? currentSetsCount.length : 0)
+    );
+
+    const currentHTML = `
+      <h3>Current # of Sets</h3>
+      <div class="sets-total">${safeCount.toLocaleString()}</div>
     `;
 
     panel.innerHTML = `
       <div class="sets-grid">
         <div class="sets-col">${slotsHTML}</div>
         <div class="sets-col">${spellsHTML}</div>
+        <div class="sets-col sets-col-total">${currentHTML}</div>
       </div>
     `;
 
-    // Preserve prior visibility state (we only update content here)
     panel.style.display = wasHidden ? 'none' : 'block';
 }
 
-// ---------- lifecycle --------------------------------------------------------
+/* ------------------------------- Lifecycle ------------------------------- */
 
 document.addEventListener('DOMContentLoaded', function () {
-    // On load we do NOT show either toggle button;
-    // they appear after the first successful delve.
+    // Toggle buttons appear only after the first successful delve.
 });
 
 function displayResult(data) {
@@ -206,8 +311,12 @@ function displayResult(data) {
     resultDiv.innerHTML = '';
     notFoundDiv.innerHTML = '';
 
+    lastItems = data.items || null;                // keep latest items
+    lastSetsCount = null;                          // invalidate cache on new delve
+    selectedSpells.clear();                        // reset selection on new delve
+
     if (data.items && data.items.length > 0) {
-        // Build the table
+        // Build table
         const table = document.createElement('table');
         table.id = 'items-table';
         table.className = 'display';
@@ -232,12 +341,12 @@ function displayResult(data) {
 
         resultDiv.appendChild(table);
 
-        // Show/create both toggle buttons after first successful delve
+        // Show/create toggles
         ensureTableToggleButton();
         ensureSetsToggleButton();
 
-        // Render the Sets panel (kept hidden until user clicks "Show Sets")
-        renderSetsPanel(data.items);
+        // Render Sets (hidden initially). Count will refresh on first "Show Sets" and when clicking spells.
+        renderSetsPanel(lastItems, 0);
 
         // Init DataTable
         $(document).ready(function () {
@@ -248,7 +357,6 @@ function displayResult(data) {
         });
     } else {
         resultDiv.textContent = 'No items found.';
-        // Hide the toggle buttons if present
         const tb = document.getElementById('toggleTableBtn');
         if (tb) tb.style.display = 'none';
         const sb = document.getElementById('toggleSetsBtn');
@@ -258,7 +366,7 @@ function displayResult(data) {
     }
 
     // Not found list
-    if (data.not_found && data.not_found.length > 0) {
+    if (data.not_found && data_not_found.length > 0) {
         const notFoundList = document.createElement('ul');
         const notFoundHeader = document.createElement('p');
         notFoundHeader.textContent = 'Item(s) not found:';

@@ -7,6 +7,9 @@ from datetime import timedelta
 
 from flask import Flask, request, jsonify, render_template, session
 from flask_session import Session
+from armor_combos import generate_armor_combinations, filter_combinations_by_spells
+
+from math import comb
 
 app = Flask(__name__)
 
@@ -325,6 +328,42 @@ def replace_session_items():
 def clear_session_items():
     session.pop('delved_items', None)
     return jsonify({"ok": True})
+
+# ---------------------- NEW: sets count from session --------------------------
+@app.get("/sets/current")
+def sets_current():
+    """
+    Compute the number of valid armor combinations from the most recent
+    delved items in the session (no filters; 6 armor slots + 2 distinct jewels).
+    """
+    items = session.get("delved_items", [])
+    if not items:
+        return jsonify({"ok": True, "sets_count": 0})
+
+    # Count exactly using your generator (same rules as the backend combos)
+    total = sum(1 for _ in generate_armor_combinations(items))
+    return jsonify({"ok": True, "sets_count": total})
+
+@app.post("/sets/filter")
+def sets_filter():
+    """
+    Count valid combinations that include ALL selected spells.
+    JSON body: { "spells": ["dexterity.ii", "agility.ii", ...] }
+    """
+    payload = request.get_json(silent=True) or {}
+    spells = payload.get("spells", [])
+    if isinstance(spells, str):
+        spells = [spells]
+    # normalize and drop empties
+    spells = [str(s or "").strip().lower() for s in spells if str(s or "").strip()]
+
+    items = session.get("delved_items", [])
+    if not items:
+        return jsonify({"ok": True, "sets_count": 0})
+
+    combos = generate_armor_combinations(items)
+    filtered = filter_combinations_by_spells(combos, spells, mode="all", field="Spell", lowercase=True)
+    return jsonify({"ok": True, "sets_count": len(filtered)})
 
 # ------------------------------------------------------------------------------
 # Health
