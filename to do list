@@ -1,0 +1,7 @@
+## Note to self - I need to update app.py or probably add a second function somewhere else to pull data from the google sheet into the local .csv only once per week. Scheduled job
+## Also, give it a button so I can update it at will.
+
+### Current steps:
+Update the index.html to look like the mock up
+    -add toggle buttons
+    - build Sets area

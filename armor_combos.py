@@ -1,280 +1,242 @@
 # armor_combos.py
-from itertools import combinations, combinations_with_replacement, product, islice
-import re
-import sys
+from __future__ import annotations
+from itertools import product, combinations, combinations_with_replacement, islice
+from typing import Dict, Iterable, Iterator, List, Tuple, Any, Set
 
-# ---- helpers to integrate with your existing get_items_from_sheet() output ----
+# Exactly the six armor slots you use
+REQUIRED_SLOTS: Tuple[str, ...] = ("Body", "Cloak", "Feet", "Hands", "Head", "Legs")
+JEWEL_SLOTS = {"jewel", "jewels"}  # case-insensitive check against Slot column
 
-def _rows_to_dicts(rows):
-    """Convert CSV rows (with header row at index 0) into list[dict]."""
-    headers = [h.strip() for h in rows[0]]
-    return [
-        {headers[i]: (row[i] if i < len(row) else "") for i in range(len(headers))}
-        for row in rows[1:]
-        if any((cell or "").strip() for cell in row)  # skip blank rows
-    ]
+def _norm(s: Any) -> str:
+    return str(s or "").strip()
 
-# Slot normalization — adjust synonyms to match your sheet’s wording if needed.
-_SLOT_SYNONYMS = {
-    "body":  {"body", "chest", "torso", "armor", "robe", "breastplate", "hauberk", "cuirass", "jacket", "coat", "tunic", "vest"},
-    "cloak": {"cloak", "cape", "mantle"},
-    "feet":  {"feet", "boots", "shoes", "sabatons", "footwear", "greaves"},
-    "hands": {"hands", "gloves", "gauntlets", "bracers"},
-    "head":  {"head", "helm", "helmet", "hat", "hood", "circlet", "crown"},
-    # Treat all rings/amulets/etc. as "jewel" for the two jewel slots:
-    "jewel": {"jewel", "jewelry", "ring", "amulet", "neck", "necklace", "earring", "bracelet", "trinket"},
-    # Explicitly ignore weapons:
-    "weapon": {"weapon", "sword", "axe", "mace", "staff", "bow", "dagger", "spear", "polearm"}
-}
+def _slot(s: Any) -> str:
+    return _norm(s).title()
 
-def _canonical_slot(text):
-    """Map a freeform slot/type string to a canonical slot name or None."""
-    s = (text or "").strip().lower()
-    if not s:
-        return None
-    # Exact or substring match against synonyms
-    for canon, keys in _SLOT_SYNONYMS.items():
-        if s in keys or any(k in s for k in keys):
-            return canon
-    return None
+def _is_weapon_or_shield(item: Dict[str, Any]) -> bool:
+    t = _norm(item.get("Type")).lower()
+    sl = _norm(item.get("Slot")).lower()
+    return t in {"weapon", "weapons", "shield", "shields"} or sl in {"weapon", "weapons", "shield", "shields"}
 
-def _guess_slot(item):
+def partition_session_items(items: List[Dict[str, Any]]) -> Tuple[Dict[str, List[Dict[str, Any]]], List[Dict[str, Any]]]:
     """
-    Try to infer an item's slot from common header names ('Slot', 'Type', 'Category', etc.)
-    Falls back to looking at the item name if needed.
+    Split items into:
+      - slot_pools: dict of required slot -> list of candidate items
+      - jewels: list of jewel items
+    Weapons/shields are excluded.
     """
-    # Prioritized header keys to inspect
-    slot_like_keys = {"slot", "wear slot", "equipment slot", "slot type", "equip", "worn", "type", "category", "location"}
-    for k, v in item.items():
-        if k.strip().lower() in slot_like_keys:
-            c = _canonical_slot(v)
-            if c:
-                return c
-    # Fallback: infer from name/description tokens
-    for name_key in ("Item", "item", "Name", "name", "Description", "desc"):
-        if name_key in item:
-            c = _canonical_slot(item[name_key])
-            if c:
-                return c
-    return None
+    slot_pools: Dict[str, List[Dict[str, Any]]] = {s: [] for s in REQUIRED_SLOTS}
+    jewels: List[Dict[str, Any]] = []
 
-def _partition_by_slot(items_dicts):
-    """Return dict of slot -> list[dict] for the armor slots we care about."""
-    keep = { "body": [], "cloak": [], "feet": [], "hands": [], "head": [], "jewel": [] }
-    for it in items_dicts:
-        slot = _guess_slot(it)
-        if slot in keep:            # only armor slots of interest
-            keep[slot].append(it)
-        # else: ignore non-armor or weapons
+    for it in items:
+        if _is_weapon_or_shield(it):
+            continue
+        slot_val = _slot(it.get("Slot"))
+        if slot_val.lower() in JEWEL_SLOTS:
+            jewels.append(it)
+        elif slot_val in slot_pools:
+            slot_pools[slot_val].append(it)
+
+    return slot_pools, jewels
+
+def _jewel_picker(
+    jewels: List[Dict[str, Any]],
+    need: int = 2,
+    allow_same_item_twice: bool = False,
+) -> Iterable[Tuple[Dict[str, Any], ...]]:
+    if need <= 0:
+        yield tuple()
+        return
+    if allow_same_item_twice:
+        yield from combinations_with_replacement(jewels, need)
+    else:
+        yield from combinations(jewels, need)
+
+def generate_armor_combinations(
+    items: List[Dict[str, Any]],
+    jewels_needed: int = 2,
+    allow_same_jewel_twice: bool = False,
+) -> Iterator[Dict[str, Any]]:
+    """
+    Yield combos that contain one item for each of:
+      Body, Cloak, Feet, Hands, Head, Legs
+    plus exactly `jewels_needed` jewels.
+
+    Each yielded record:
+      { "slots": { "Body": {...}, "Cloak": {...}, ..., "Jewel1": {...}, "Jewel2": {...} } }
+    """
+    slot_pools, jewel_pool = partition_session_items(items)
+
+    # All 6 armor slots must have at least one candidate
+    if any(not slot_pools.get(s) for s in REQUIRED_SLOTS):
+        return iter(())  # empty iterator
+
+    if len(jewel_pool) < jewels_needed and not allow_same_jewel_twice:
+        return iter(())
+
+    per_slot_lists = [slot_pools[s] for s in REQUIRED_SLOTS]
+
+    for body, cloak, feet, hands, head, legs in product(*per_slot_lists):
+        if jewels_needed == 2:
+            jewel_pairs = (
+                combinations_with_replacement(jewel_pool, 2)
+                if allow_same_jewel_twice else
+                combinations(jewel_pool, 2)
+            )
+        elif jewels_needed <= 0:
+            jewel_pairs = [tuple()]
+        else:
+            jewel_pairs = (
+                combinations_with_replacement(jewel_pool, jewels_needed)
+                if allow_same_jewel_twice else
+                combinations(jewel_pool, jewels_needed)
+            )
+
+        for jp in jewel_pairs:
+            slot_map = {
+                "Body": body, "Cloak": cloak, "Feet": feet,
+                "Hands": hands, "Head": head, "Legs": legs,
+            }
+            for i, j in enumerate(jp, start=1):
+                slot_map[f"Jewel{i}"] = j
+            # If jewels_needed > len(jp), pad (keeps keys stable)
+            for k in range(len(jp) + 1, jewels_needed + 1):
+                slot_map[f"Jewel{k}"] = None
+
+            yield {"slots": slot_map}
+
+def take(n: int, it: Iterable[Any]) -> List[Any]:
+    """Return the first n items from an iterator/generator."""
+    return list(islice(it, n))
+
+# ---------------------------------------------------------------------------
+# Unique spells helper
+# ---------------------------------------------------------------------------
+def get_unique_spells(
+    items: List[Dict[str, Any]],
+    *,
+    field: str = "Spell",
+    lowercase: bool = True,
+    drop_blanks: bool = True,
+) -> List[str]:
+    """
+    Return the list of unique spells available across items, alphabetized.
+    """
+    seen = set()
+    result: List[str] = []
+
+    for it in items:
+        raw = it.get(field)
+        if raw is None:
+            if drop_blanks:
+                continue
+            normalized = ""
+        else:
+            normalized = str(raw).strip()
+        if lowercase:
+            normalized = normalized.lower()
+
+        if drop_blanks and not normalized:
+            continue
+
+        if normalized not in seen:
+            seen.add(normalized)
+            result.append(normalized)
+
+    result.sort(key=lambda s: s.lower())
+    return result
+
+# ---------------------------------------------------------------------------
+# Filtering combos by required spells
+# ---------------------------------------------------------------------------
+def _combo_spells(
+    combo: Dict[str, Any],
+    *,
+    field: str = "Spell",
+    lowercase: bool = True,
+    drop_blanks: bool = True,
+) -> Set[str]:
+    """
+    Collect the set of spells present across all items in a combo.
+    """
+    out: Set[str] = set()
+    slots = combo.get("slots", {}) or {}
+    for it in slots.values():
+        if not it:
+            continue
+        raw = it.get(field)
+        if raw is None and drop_blanks:
+            continue
+        val = "" if raw is None else str(raw).strip()
+        if lowercase:
+            val = val.lower()
+        if drop_blanks and not val:
+            continue
+        out.add(val)
+    return out
+
+def filter_combinations_by_spells(
+    combos: Iterable[Dict[str, Any]],
+    required_spells: Iterable[str] | str,
+    *,
+    mode: str = "all",          # "all" = every spell required; "any" = at least one
+    field: str = "Spell",
+    lowercase: bool = True,
+) -> List[Dict[str, Any]]:
+    """
+    Keep only those combos that include the required spell(s).
+
+    Args:
+        combos: iterable of combo dicts from `generate_armor_combinations`
+        required_spells: a string or list of strings (e.g., "agility.ii" or ["agility.ii", "bless.ii"])
+        mode: "all" (default) requires every spell to be present somewhere in the combo;
+              "any" keeps combos that contain at least one of the required spells.
+        field: key that holds the spell on each item (default "Spell")
+        lowercase: normalize comparison case-insensitively
+    """
+    if isinstance(required_spells, str):
+        req = [required_spells]
+    else:
+        req = list(required_spells)
+
+    req_norm: Set[str] = set()
+    for s in req:
+        v = "" if s is None else str(s).strip()
+        if lowercase:
+            v = v.lower()
+        if v:
+            req_norm.add(v)
+
+    if not req_norm:
+        # No criteria -> return everything as a list
+        return list(combos)
+
+    keep: List[Dict[str, Any]] = []
+    for combo in combos:
+        spells = _combo_spells(combo, field=field, lowercase=lowercase, drop_blanks=True)
+        if mode == "any":
+            if spells & req_norm:
+                keep.append(combo)
+        else:  # "all"
+            if req_norm.issubset(spells):
+                keep.append(combo)
     return keep
 
-def _item_label(it, preferred_keys=("Item","item","Name","name","Description","desc")):
-    """Readable label for samples; tries common name keys first."""
-    for k in preferred_keys:
-        if k in it and it[k]:
-            return str(it[k])
-    # last resort: first non-empty stringy value
-    for v in it.values():
-        if isinstance(v, str) and v.strip():
-            return v.strip()
-    return "<unnamed item>"
-
-# ---- normalization + filtering to only use user-pasted items ----
-
-def _norm_name(s: str) -> str:
-    """Normalize a user/item name for matching."""
-    s = (s or "").lower()
-
-    # Remove 'You also see' and anything to the left of a colon
-    s = re.sub(r'^you also see\s*', '', s)
-    s = re.sub(r'^[^:]*:\s*', '', s)
-
-    # Remove the phrase 'and a' when used as a joiner (e.g., "... and a ring")
-    s = re.sub(r'(?:(?<=^)|(?<=[\s,]))and a\s+', ' ', s)
-
-    # Remove leading articles
-    s = re.sub(r'^(a|an|the)\s+', '', s)
-
-    # Squash whitespace and strip punctuation except apostrophes
-    s = re.sub(r'\s+', ' ', s)
-    s = re.sub(r"[^\w\s']+", '', s)
-    return s.strip()
-
-def parse_user_items_text(text: str) -> list[str]:
-    """Split pasted text into a de-duplicated list of normalized item names."""
-    parts = re.split(r'[,\n]+', text)
-    names, seen = [], set()
-    for p in parts:
-        n = _norm_name(p)
-        if n and n not in seen:
-            seen.add(n)
-            names.append(n)
-    return names
-
-def filter_sheet_items_by_names(rows, wanted_names, name_keys=("Item","Name","item","name")):
-    """Return (matched_items_as_dicts, missing_names) from the sheet rows."""
-    dict_rows = _rows_to_dicts(rows)
-    index = {}
-    for d in dict_rows:
-        for nk in name_keys:
-            if nk in d and d[nk]:
-                nm = _norm_name(d[nk])
-                if nm and nm not in index:
-                    index[nm] = d
-                break
-    matched, missing = [], []
-    for n in wanted_names:
-        it = index.get(n)
-        if it:
-            matched.append(it)
-        else:
-            missing.append(n)
-    return matched, missing
-
-# ---- main entry point for combinations ----
-
-def generate_armor_combinations(all_items_dicts, *, jewel_pairing="distinct", sample=5, name_key=None):
+def refine_combinations_by_spell(
+    combos: Iterable[Dict[str, Any]],
+    new_required_spell: str,
+    *,
+    field: str = "Spell",
+    lowercase: bool = True,
+) -> List[Dict[str, Any]]:
     """
-    Compute total armor loadouts and return a few sample combos for spot checks.
-
-    Returns a dict:
-      {
-        "slot_counts": {...},
-        "total_combinations": int,
-        "samples": [ {body, cloak, feet, hands, head, jewels: [j1, j2]}, ... ]
-      }
+    Incrementally filter an already-filtered list by ONE additional spell.
+    Equivalent to: filter_combinations_by_spells(combos, [new_required_spell], mode="all").
     """
-    slots = _partition_by_slot(all_items_dicts)
-
-    counts = {k: len(v) for k, v in slots.items()}
-    nb, nc, nf, nh, hd, nj = (
-        counts["body"], counts["cloak"], counts["feet"], counts["hands"], counts["head"], counts["jewel"]
+    return filter_combinations_by_spells(
+        combos,
+        [new_required_spell],
+        mode="all",
+        field=field,
+        lowercase=lowercase,
     )
-
-    # Jewel pairing math
-    if nj == 0:
-        pair_count = 0
-        jewel_pairs_iter_factory = lambda: iter(())
-    elif jewel_pairing == "distinct":
-        pair_count = nj * (nj - 1) // 2
-        jewel_pairs_iter_factory = lambda: combinations(slots["jewel"], 2)
-    elif jewel_pairing == "with_replacement":
-        pair_count = nj * (nj + 1) // 2
-        jewel_pairs_iter_factory = lambda: combinations_with_replacement(slots["jewel"], 2)
-    elif jewel_pairing == "ordered":
-        pair_count = nj * nj
-        jewel_pairs_iter_factory = lambda: product(slots["jewel"], repeat=2)
-    else:
-        raise ValueError("jewel_pairing must be one of: 'distinct', 'with_replacement', 'ordered'")
-
-    # If any required slot is empty, total is 0.
-    if min(nb, nc, nf, nh, hd, pair_count) == 0:
-        return {
-            "slot_counts": counts,
-            "total_combinations": 0,
-            "samples": []
-        }
-
-    total = nb * nc * nf * nh * hd * pair_count
-
-    # Build a small sample without enumerating everything
-    def combo_gen():
-        for b in slots["body"]:
-            for c in slots["cloak"]:
-                for f in slots["feet"]:
-                    for h in slots["hands"]:
-                        for he in slots["head"]:
-                            for j1, j2 in jewel_pairs_iter_factory():
-                                yield (b, c, f, h, he, j1, j2)
-
-    nk = name_key  # optional override
-    def label(it):
-        return it.get(nk) if (nk and nk in it and it[nk]) else _item_label(it)
-
-    samples = []
-    for (b, c, f, h, he, j1, j2) in islice(combo_gen(), sample):
-        samples.append({
-            "body":  label(b),
-            "cloak": label(c),
-            "feet":  label(f),
-            "hands": label(h),
-            "head":  label(he),
-            "jewels": [label(j1), label(j2)]
-        })
-
-    return {
-        "slot_counts": counts,
-        "total_combinations": total,
-        "samples": samples
-    }
-
-# ---- convenience: use the live sheet (all items) ----
-
-def compute_armor_combo_summary(sample=5, jewel_pairing="distinct", name_key="Item"):
-    """
-    Pulls the sheet, converts rows to dicts, and returns a summary with counts + samples.
-    Uses *all* items from the sheet.
-    """
-    from app import get_items_from_sheet  # imported here to avoid hard dependency at import time
-    rows = get_items_from_sheet()
-    items = _rows_to_dicts(rows)
-    return generate_armor_combinations(items, jewel_pairing=jewel_pairing, sample=sample, name_key=name_key)
-
-# ---- ONLY combine items the user pasted (matches against the live sheet) ----
-
-def generate_combos_for_user_input(user_input_text: str, *, sample=5, jewel_pairing="distinct", name_key="Item"):
-    """
-    Filter the sheet to only the user-pasted items, then compute combos.
-    Returns the usual summary, plus:
-      - selected_item_count
-      - not_found: list[str] of user-provided names not found in the sheet
-    """
-    from app import get_items_from_sheet  # imported here to avoid circular import on module load
-    rows = get_items_from_sheet()
-    wanted = parse_user_items_text(user_input_text)
-    matched, missing = filter_sheet_items_by_names(rows, wanted)
-    summary = generate_armor_combinations(matched, jewel_pairing=jewel_pairing, sample=sample, name_key=name_key)
-    summary["selected_item_count"] = len(matched)
-    summary["not_found"] = missing
-    return summary
-
-# ---- CLI (reads items from arg, file, or stdin; only uses selected items) ----
-
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Armor combo spot-check from pasted items only.")
-    parser.add_argument("--items", help="Comma- or newline-separated items (quotes OK).", default="")
-    parser.add_argument("--file", help="Path to a text file containing items.", default="")
-    parser.add_argument("--stdin", help="Read items from STDIN.", action="store_true")
-    parser.add_argument("--sample", type=int, default=3)
-    parser.add_argument("--jewel_pairing", choices=["distinct","with_replacement","ordered"], default="distinct")
-    parser.add_argument("--name_key", default="Item")
-    args = parser.parse_args()
-
-    if args.stdin:
-        user_text = sys.stdin.read()
-    elif args.file:
-        with open(args.file, "r", encoding="utf-8") as f:
-            user_text = f.read()
-    else:
-        user_text = args.items
-
-    if not (user_text or "").strip():
-        print("No items provided. Use --items, --file, or --stdin.")
-        sys.exit(1)
-
-    summary = generate_combos_for_user_input(
-        user_text,
-        sample=args.sample,
-        jewel_pairing=args.jewel_pairing,
-        name_key=args.name_key
-    )
-
-    print("Selected items:", summary.get("selected_item_count", 0))
-    if summary.get("not_found"):
-        print("Not found in sheet:", summary["not_found"])
-    print("Slot counts:", summary["slot_counts"])
-    print("Total armor combinations:", summary["total_combinations"])
-    for i, s in enumerate(summary["samples"], 1):
-        print(f"{i}.", s)
