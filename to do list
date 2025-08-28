@@ -1,8 +1,2 @@
 ## Note to self - I need to update app.py or probably add a second function somewhere else to pull data from the google sheet into the local .csv only once per week. Scheduled job
 ## Also, give it a button so I can update it at will.
-
-### Current steps:
-display any "locked in" items underneath Current # of Sets
-improve the filtering and displaying of data under 'available spells' to eventually
-Optimize the process to reduce calculation or "waiting" time
-Display a "thinking" whirlygig somewhere?

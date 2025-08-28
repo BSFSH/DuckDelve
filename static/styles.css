@@ -1,182 +1,228 @@
-/* Full-Time Dark Mode Styles */
+/* =========================
+   Global / Dark Theme Base
+   ========================= */
+:root {
+  --content-max: 1200px;
+  --side-pad: 16px;
+}
+
 body {
-    font-family: Arial, sans-serif;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background-color: #1c1c1c; /* Dark background */
-    color: #f1f1f1; /* Light text */
-    margin: 0;
+  font-family: Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #1c1c1c;
+  color: #f1f1f1;
+  margin: 0;
 }
 
 .container {
-    text-align: center;
-    width: 90%;
-    max-width: 800px;
-    margin: auto;
+  text-align: center;
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 0 var(--side-pad);
 }
 
 textarea {
-    width: 100%;
-    height: 200px;
-    margin-bottom: 10px;
-    padding: 10px;
-    background-color: #333; /* Dark background for textarea */
-    color: #fff; /* Light text for textarea */
-    border: 1px solid #777; /* Darker border */
-    border-radius: 4px;
-    box-sizing: border-box;
+  width: 100%;
+  height: 200px;
+  margin-bottom: 10px;
+  padding: 10px;
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #777;
+  border-radius: 4px;
+  box-sizing: border-box;
 }
 
 button {
-    padding: 10px 20px;
-    font-size: 16px;
-    cursor: pointer;
-    border: none;
-    background-color: #555; /* Darker button */
-    color: white; /* Light button text */
-    border-radius: 4px;
-    margin-bottom: 20px;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  border: none;
+  background-color: #555;
+  color: white;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+button:hover { background-color: #444; }
+
+/* =========================
+   Results / Table
+   ========================= */
+#result { width: 100%; display: block !important; }
+
+#items-table_wrapper,
+#result .dataTables_wrapper {
+  width: min(var(--content-max), 100%) !important;
+  max-width: var(--content-max) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: var(--side-pad) !important;
+  padding-right: var(--side-pad) !important;
+  box-sizing: border-box;
+  text-align: left;
 }
 
-button:hover {
-    background-color: #444; /* Darker hover effect */
+#result .dataTables_length,
+#result .dataTables_filter,
+#result .dataTables_info,
+#result .dataTables_paginate {
+  float: none !important;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding-left: var(--side-pad);
+  padding-right: var(--side-pad);
 }
 
-#result {
-    display: flex;
-    justify-content: center;
-    width: 100%;
+#result .dataTables_length,
+#result .dataTables_filter {
+  justify-content: space-between;
+  margin: 0 0 8px 0;
+}
+
+#result .dataTables_info,
+#result .dataTables_paginate {
+  justify-content: space-between;
+  margin: 8px 0 0 0;
 }
 
 table {
-    border-collapse: collapse;
-    margin: 20px auto; /* Center-align the table */
-    color: #fff; /* Light text for table */
-    background-color: #333; /* Dark background for table */
+  width: 100% !important;
+  border-collapse: collapse;
+  margin: 20px 0;
+  color: #fff;
+  background-color: #333;
+}
+#items-table {
+  margin-left: auto !important;
+  margin-right: auto !important;
 }
 
-th, td {
-    border: 1px solid #555; /* Darker border */
-    padding: 8px;
-    text-align: left;
-    background-color: #2a2a2a; /* Darker background for table cells */
-}
+th, td { border: 1px solid #555; padding: 8px; text-align: left; background-color: #2a2a2a; }
+table .sorting_1 { background-color: #3a3a3a !important; color: #fff !important; }
+th { background-color: #444 !important; color: #fff; }
+tr:nth-child(even) { background-color: #2a2a2a; }
+tr:hover { background-color: #444; }
 
-/* Override DataTables sorted column class */
-table .sorting_1 {
-    background-color: #3a3a3a !important; /* Slightly lighter gray for the sorted column */
-    color: #fff !important; /* Force text to stay white */
-}
-
-/* General table header styles */
-th {
-    background-color: #444 !important; /* Darker background for table headers */
-    color: #fff; /* Light text for headers */
-}
-
-tr:nth-child(even) {
-    background-color: #2a2a2a; /* Darker background for even rows */
-}
-
-tr:hover {
-    background-color: #444; /* Hover effect for table rows */
-}
-
-/* Lighten text for all elements outside the table */
 .dataTables_length label,
 .dataTables_info,
 .dataTables_filter label,
 .dataTables_paginate,
-body *:not(table) {
-    color: #ccc; /* Apply the same lighter gray color */
+body *:not(table) { color: #ccc; }
+
+ul { list-style-position: inside; padding: 0; margin: 0; }
+ul li { margin-left: 20px; padding-left: 5px; }
+
+#result.keep-space-hidden { visibility: hidden; }
+
+/* =========================
+   Set Builder
+   ========================= */
+#sets-panel-holder { width: 100%; margin: 18px auto 32px; } /* space before table */
+#sets-panel { max-width: var(--content-max); margin: 0 auto; padding: 0 var(--side-pad); }
+
+.sets-panel { padding: 8px 0; text-align: center; }
+.builder-header { margin: 6px 0 10px; }
+.builder-header h3 { margin: 0; font-weight: 700; }
+
+/* row that holds LEFT counts, MIDDLE grid, RIGHT macro */
+.builder-row {
+  display: flex !important;
+  gap: 28px;
+  align-items: flex-start;
+  justify-content: center;
+  flex-wrap: nowrap;
+  margin-top: 8px;
+}
+@media (max-width: 1100px) { .builder-row { flex-wrap: wrap; } }
+
+/* LEFT: counts */
+.counts-box { min-width: 220px; max-width: 260px; flex: 0 0 240px; text-align: left; }
+.counts-box h4 { margin: 0 0 8px; font-weight: 700; }
+.counts-list { list-style: none; margin: 0; padding: 0; }
+.counts-list li { margin: 3px 0; }
+.count-slot { display: inline-block; min-width: 72px; font-weight: 600; color: #ddd; }
+.count-num { color: #fff; }
+
+/* MIDDLE grid (8 selects) */
+.builder-grid {
+  display: inline-grid;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 16px 20px;
+  justify-items: stretch;
+  margin-top: 8px;
+  margin-bottom: 28px; /* space before the two side-by-side boxes */
+}
+.builder-field { display: flex; flex-direction: column; gap: 6px; text-align: left; min-width: 220px; }
+.builder-field label { font-weight: 600; }
+
+/* Select styling */
+.builder-select {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.22);
+  background-color: #1c1f24;
+  color: #e9eef5;
 }
 
-
-ul {
-    list-style-position: inside; /* Ensure bullets are inside the list item */
-    padding: 0; /* Remove default padding */
-    margin: 0; /* Remove default margin */
+/* Force monospace on both the closed select and the dropdown rows for the "two columns" look */
+.builder-select.opt-columns,
+.builder-select.opt-columns option {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+               "Liberation Mono", "Courier New", monospace !important;
 }
 
-ul li {
-    margin-left: 20px; /* Adjust as needed to align bullet points */
-    padding-left: 5px; /* Adjust padding between bullet and text */
+/* Mask: closed select shows only the item name */
+.select-mask { position: relative; }
+.select-mask::after {
+  content: attr(data-label);
+  position: absolute;
+  left: 12px; top: 50%;
+  transform: translateY(-50%);
+  color: #e9eef5;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 34px);
 }
+.select-mask .builder-select { color: transparent; text-shadow: none; }
+.select-mask .builder-select option { color: #e9eef5; background: #2a2f36; }
 
-/* Hide table but keep its layout space */
-#result.keep-space-hidden {
-  visibility: hidden;
+/* RIGHT: macro box */
+.macro-box { min-width: 280px; max-width: 420px; flex: 0 0 360px; text-align: left; }
+.macro-box label { display: block; font-weight: 700; margin-bottom: 6px; }
+.macro-output {
+  width: 100%;
+  min-height: 100px;
+  padding: 10px;
+  border-radius: 6px;
+  background-color: #1c1f24;
+  border: 1px solid rgba(255,255,255,0.22);
+  color: #e9eef5;
+  resize: vertical;
+  white-space: pre-wrap;      /* visual wrap only */
+  overflow-wrap: anywhere;
 }
+.macro-hint { font-size: 12px; color: #aab2bd; margin-top: 6px; }
 
-/* ---------------- Sets panel (3 columns: Totals | Spells | Current #) ---------------- */
-
-#sets-panel-holder {
-  width: min(1200px, 96vw);
-  margin: 18px auto 8px;
-}
-
-.sets-panel {
-  padding: 8px 12px;
-}
-
-.sets-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr; /* three columns */
-  gap: 24px;
-  align-items: start;
-}
-
-.sets-col h3 {
-  margin: 0 0 8px;
-  font-weight: 700;
-}
-
-.sets-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.sets-list li {
-  margin: 2px 0;
-}
-
-.slot-name {
-  display: inline-block;
-  min-width: 64px;
-  font-weight: 600;
-  color: #ddd;
-}
-
-.slot-count {
-  color: #fff;
-}
-
-.sets-col-total {
-  text-align: center;
-}
-
-.sets-col-total .sets-total {
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: 0.3px;
-  margin-top: 6px;
-}
-
-/* Optional: stack all three columns vertically on narrow screens */
-@media (max-width: 1100px) {
-  .sets-grid {
-    grid-template-columns: 1fr;
+/* Optional optical-centering nudge (wide screens only) */
+:root { --table-optical-shift: -20%; }
+@media (min-width: 1100px) {
+  #items-table_wrapper {
+    margin-inline: auto !important;
+    max-width: var(--content-max, 1200px);
+    width: min(100%, var(--content-max, 1200px));
+    transform: translateX(var(--table-optical-shift));
   }
 }
-
-/* Clickable spells in the Sets panel */
-.sets-list .spell-item { cursor: pointer; }
-.sets-list .spell-item:hover { text-decoration: underline; }
-.sets-list .spell-selected { color: #7cc7ff; } /* light blue */
-
-
-
+@media (max-width: 1099px) {
+  #items-table_wrapper { transform: none; }
+}

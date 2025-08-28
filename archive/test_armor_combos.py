@@ -1,5 +1,5 @@
 import pytest
-from armor_combos import (
+from archive.armor_combos import (
     generate_armor_combinations,
     REQUIRED_SLOTS,
     take,
