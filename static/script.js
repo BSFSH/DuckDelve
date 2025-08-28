@@ -3,6 +3,10 @@
 
 let lastItems = null; // most-recent items returned by /submit
 
+// Persisted visibility of the Set Builder (default: visible)
+let builderVisible =
+  (localStorage.getItem('builderVisible') ?? '1') === '1';
+
 function submitItems() {
   const itemList = document.getElementById('item-list').value;
   fetch('/submit', {
@@ -10,9 +14,9 @@ function submitItems() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ items: itemList })
   })
-  .then(r => r.json())
-  .then(data => displayResult(data))
-  .catch(err => console.error('Error:', err));
+    .then(r => r.json())
+    .then(data => displayResult(data))
+    .catch(err => console.error('Error:', err));
 }
 
 /* ------------------------------- Buttons --------------------------------- */
@@ -36,27 +40,24 @@ function ensureSetBuilderToggleButton() {
     toggleBtn.type = 'button';
     toggleBtn.className = delveBtn.className || '';
     toggleBtn.style.marginRight = '12px';
-    toggleBtn.textContent = 'Hide Set Builder';
+    toggleBtn.textContent = builderVisible ? 'Hide Set Builder' : 'Show Set Builder';
     // insert to the LEFT of Delve
     delveBtn.parentNode.insertBefore(toggleBtn, delveBtn);
 
     toggleBtn.addEventListener('click', () => {
       const panel = document.getElementById('sets-panel');
       if (!panel) return;
-      const hidden = panel.style.display === 'none';
-      if (hidden) {
-        panel.style.display = 'block';
-        toggleBtn.textContent = 'Hide Set Builder';
-      } else {
-        panel.style.display = 'none';
-        toggleBtn.textContent = 'Show Set Builder';
-      }
+
+      // Flip state, persist, then reflect in UI
+      builderVisible = !builderVisible;
+      localStorage.setItem('builderVisible', builderVisible ? '1' : '0');
+
+      panel.style.display = builderVisible ? 'block' : 'none';
+      toggleBtn.textContent = builderVisible ? 'Hide Set Builder' : 'Show Set Builder';
     });
   } else {
-    const panel = document.getElementById('sets-panel');
-    toggleBtn.textContent = panel && panel.style.display !== 'none'
-      ? 'Hide Set Builder'
-      : 'Show Set Builder';
+    // keep label in sync with remembered state
+    toggleBtn.textContent = builderVisible ? 'Hide Set Builder' : 'Show Set Builder';
     toggleBtn.style.display = '';
   }
 }
@@ -112,7 +113,7 @@ function buildSlotPools(items) {
     pools[rawSlot].push(it);
   });
 
-  // Sort by Spell, then Item
+  // Sort by Spell, then Item (to keep “two-column” reads nice)
   Object.keys(pools).forEach(k => {
     pools[k].sort((a, b) => {
       const as = String(a.Spell || '').toLowerCase();
@@ -157,7 +158,11 @@ function updateMacroOutput() {
   const parts = [];
   for (const slot of SLOT_ORDER) {
     const name = currentSelection[slot];
-    if (name) parts.push(`withdraw ${name}& `);
+    if (name) {
+      // NEW behavior per item:
+      // "withdraw <item>& equip <item>& "
+      parts.push(`withdraw ${name}& equip ${name}& `);
+    }
   }
   macroTextarea.value = parts.join('');
 }
@@ -328,8 +333,8 @@ function renderSetBuilder(items) {
   subRow.appendChild(macroWrap);
   panel.appendChild(subRow);
 
-  // Make sure the panel is visible (default) and toggle button is in sync
-  panel.style.display = 'block';
+  // Apply persisted visibility
+  panel.style.display = builderVisible ? 'block' : 'none';
   ensureSetBuilderToggleButton();
 
   // reset macro state on re-render
@@ -390,7 +395,7 @@ function displayResult(data) {
       });
     });
 
-    // Render the Set Builder above the table (always visible after delve)
+    // Render the Set Builder above the table (visibility respects persistence)
     renderSetBuilder(lastItems);
 
     resultDiv.appendChild(table);
