@@ -1,0 +1,33 @@
+name: Deploy to PythonAnywhere
+
+# Auto-deploy on every push to main. You can also trigger it by hand from the
+# Actions tab (workflow_dispatch).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull latest code + install deps on PythonAnywhere (over SSH)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ssh.pythonanywhere.com
+          username: ${{ secrets.PA_USERNAME }}
+          password: ${{ secrets.PA_PASSWORD }}
+          script: |
+            set -e
+            cd "${{ secrets.PA_PROJECT_DIR }}"
+            git pull --ff-only
+            source "${{ secrets.PA_VENV_DIR }}/bin/activate"
+            pip install -r requirements.txt -q
+
+      - name: Reload the web app (PythonAnywhere API)
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}" \
+            "https://www.pythonanywhere.com/api/v0/user/${{ secrets.PA_USERNAME }}/webapps/${{ secrets.PA_DOMAIN }}/reload/")
+          echo "Reload returned HTTP $status"
+          test "$status" = "200"
