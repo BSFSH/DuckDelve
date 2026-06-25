@@ -363,72 +363,118 @@ document.addEventListener('DOMContentLoaded', function () {
   // toggle button appears after first successful delve (when panel exists)
 });
 
+/* Build a <table> element from headers + row objects. */
+function buildTable(tableId, headers, rows) {
+  const table = document.createElement('table');
+  table.id = tableId;
+  table.className = 'display';
+
+  const header = table.createTHead().insertRow();
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    header.appendChild(th);
+  });
+
+  const tbody = table.createTBody();
+  rows.forEach(item => {
+    const row = tbody.insertRow();
+    headers.forEach(h => {
+      const cell = row.insertCell();
+      cell.textContent = item[h] ?? '';
+    });
+  });
+  return table;
+}
+
+/* (Re)initialise a DataTable on a selector, destroying any prior instance. */
+function initDataTable(selector) {
+  if ($.fn.dataTable.isDataTable(selector)) {
+    $(selector).DataTable().destroy();
+  }
+  $(selector).DataTable({
+    pageLength: 100,
+    lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']]
+  });
+}
+
 function displayResult(data) {
   const resultDiv = document.getElementById('result');
+  const craftDiv = document.getElementById('craft-result');
   const notFoundDiv = document.getElementById('not-found');
   resultDiv.innerHTML = '';
+  if (craftDiv) craftDiv.innerHTML = '';
   notFoundDiv.innerHTML = '';
 
   lastItems = data.items || null;
 
-  if (data.items && data.items.length > 0) {
-    // Build table
-    const table = document.createElement('table');
-    table.id = 'items-table';
-    table.className = 'display';
-    const thead = table.createTHead();
-    const header = thead.insertRow();
-    const headers = data.headers;
+  const hasItems = data.items && data.items.length > 0;
+  const hasCraft = data.craft_items && data.craft_items.length > 0;
 
-    headers.forEach(h => {
-      const th = document.createElement('th');
-      th.textContent = h;
-      header.appendChild(th);
-    });
-
-    const tbody = table.createTBody();
-    data.items.forEach(item => {
-      const row = tbody.insertRow();
-      headers.forEach(h => {
-        const cell = row.insertCell();
-        cell.textContent = item[h];
-      });
-    });
+  // ---- Main gear table ----
+  if (hasItems) {
+    const table = buildTable('items-table', data.headers, data.items);
 
     // Render the Set Builder above the table (visibility respects persistence)
     renderSetBuilder(lastItems);
-
     resultDiv.appendChild(table);
-
-    // Init DataTable
-    $(document).ready(function () {
-      $('#items-table').DataTable({
-        pageLength: 100,
-        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]]
-      });
-    });
-
-    // Make sure toggle exists & reads correctly
+    initDataTable('#items-table');
     ensureSetBuilderToggleButton();
   } else {
-    resultDiv.textContent = 'No items found.';
+    if (!hasCraft) resultDiv.textContent = 'No items found.';
     const sp = document.getElementById('sets-panel');
     if (sp) sp.style.display = 'none';
     const tb = document.getElementById('toggleBuilderBtn');
     if (tb) tb.style.display = 'none';
   }
 
-  // Not found list
-  if (data.not_found && data.not_found.length > 0) {
-    const notFoundList = document.createElement('ul');
-    const notFoundHeader = document.createElement('p');
-    notFoundHeader.textContent = 'Item(s) not found:';
-    notFoundDiv.appendChild(notFoundHeader);
-    data.not_found.forEach(item => {
+  // ---- Crafting materials table (separate, different sheet shape) ----
+  if (hasCraft && craftDiv) {
+    const heading = document.createElement('h3');
+    heading.textContent = 'Crafting Materials';
+    craftDiv.appendChild(heading);
+    craftDiv.appendChild(buildTable('craft-table', data.craft_headers, data.craft_items));
+    initDataTable('#craft-table');
+  }
+
+  // ---- Not found ----
+  renderNotFound(notFoundDiv, data);
+}
+
+function renderNotFound(notFoundDiv, data) {
+  const detailed = data.not_found_detailed || [];
+  const withData = detailed.filter(d => d.bracket);
+  const plain = detailed.length
+    ? detailed.filter(d => !d.bracket).map(d => d.name)
+    : (data.not_found || []);
+
+  if (!withData.length && !plain.length) return;
+
+  const header = document.createElement('p');
+  header.textContent = 'Item(s) not found:';
+  notFoundDiv.appendChild(header);
+
+  // Items that carried bracket data get a small table so their level/slot/
+  // enchants aren't lost even though they're not on the sheet.
+  if (withData.length) {
+    const cols = ['Item', 'Lvl', 'Slot', 'Enchants'];
+    const rows = withData.map(d => ({
+      Item: d.name,
+      Lvl: d.level ?? '',
+      Slot: d.slot || '',
+      Enchants: d.enchants || ''
+    }));
+    notFoundDiv.appendChild(buildTable('not-found-table', cols, rows));
+    initDataTable('#not-found-table');
+  }
+
+  if (plain.length) {
+    const list = document.createElement('ul');
+    plain.forEach(name => {
       const li = document.createElement('li');
-      li.textContent = item;
-      notFoundList.appendChild(li);
+      li.textContent = name;
+      list.appendChild(li);
     });
-    notFoundDiv.appendChild(notFoundList);
+    notFoundDiv.appendChild(list);
   }
 }
