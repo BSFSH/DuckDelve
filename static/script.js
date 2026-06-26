@@ -159,9 +159,9 @@ function updateMacroOutput() {
   for (const slot of SLOT_ORDER) {
     const name = currentSelection[slot];
     if (name) {
-      // NEW behavior per item:
-      // "withdraw <item>& equip <item>& "
-      parts.push(`withdraw ${name}& equip ${name}& `);
+      // Per item: "withdraw <item>& wear <item>& "
+      // Set Builder slots are all armor, which is put on with "wear" (not "equip").
+      parts.push(`withdraw ${name}& wear ${name}& `);
     }
   }
   macroTextarea.value = parts.join('');
